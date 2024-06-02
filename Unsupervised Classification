@@ -1,0 +1,34 @@
+Link: https://code.earthengine.google.com/410071dd1b18c21c6c3ed834f1de78a1
+
+Code:
+print(table.first())
+var aoi = table.filter(ee.Filter.eq("NAME_3", "Manikganj S."))
+print(aoi)
+Map.centerObject(aoi)
+var image = ee.ImageCollection("LANDSAT/LC09/C02/T1_L2")
+                .filterBounds(aoi)
+                .filterDate('2022-01-01', '2022-12-31')
+                .filter(ee.Filter.lt('CLOUD_COVER', 20))
+                .median()
+                .clip(aoi);
+var bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B6']; 
+var input = image.select(bands);
+
+var sample = input.sample({
+  region: aoi,
+  scale: 30,
+  numPixels: 5000
+});
+
+var clusterer = ee.Clusterer.wekaKMeans(5).train(sample);
+var result = input.cluster(clusterer);
+
+Map.addLayer(result.randomVisualizer(), {}, 'Clusters');
+
+Export.image.toDrive({
+  image: result,
+  description: 'Landsat9_Unsupervised_Classification',
+  scale: 30,
+  region: aoi,
+  fileFormat: 'GeoTIFF'
+});
